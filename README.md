@@ -1,1 +1,2 @@
-# x65-emu
+# X65 Virtual Console
+A virtual console based on X65 CPU.
