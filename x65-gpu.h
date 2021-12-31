@@ -174,12 +174,14 @@ class GPU {
         vec<Sprite*>sorted[3];
         for (int i = 0; i < 128; i++) {
             Sprite& spr = sprites[i];
-            if (spr.layer() == 0)
+
+            if (spr.layer() == 0) {
                 sorted[0].push_back(&spr);
-            else if (spr.layer() == 1)
+            } else if (spr.layer() == 1) {
                 sorted[1].push_back(&spr);
-            else
+            } else {
                 sorted[2].push_back(&spr);
+            };
         };
 
         // dma sprite data

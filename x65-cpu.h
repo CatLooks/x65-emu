@@ -26,11 +26,11 @@ namespace x65 {
 
 	// opcode data
 	Mode opcodeMode[256] {
-		IMP, DIM, DIM, NOT, DIR, DIR, DIR, IMP, IMP, DRX, DRX, NOT, DRX, DRY, DRY, IMP,
-		REL, IMM, IMM, NOT, ACC, ZPG, ZPG, IMP, IMP, ZPX, ZPX, NOT, DRY, ZPY, ZPY, IMP,
-		DIR, DIM, DIM, NOT, DIR, DIR, DIR, IMP, IMP, DRX, DRX, NOT, DRX, DRY, DRY, IMP,
-		REL, IMM, IMM, NOT, ACC, ZPG, ZPG, IMP, IMP, ZPX, ZPX, NOT, DRY, ZPY, ZPY, IMP,
-		IMP, DIM, IMP, NOT, DIR, DIR, DIR, IMP, IMP, DRX, DRX, NOT, DRX, DRY, DRY, IMP,
+		IMP, DIM, DIM, IMM, DIR, DIR, DIR, IMP, IMP, DRX, DRX, IMP, DRX, DRY, DRY, IMP,
+		REL, IMM, IMM, IMM, ACC, ZPG, ZPG, IMP, IMP, ZPX, ZPX, IMP, DRY, ZPY, ZPY, IMP,
+		DIR, DIM, DIM, ZPG, DIR, DIR, DIR, IMP, IMP, DRX, DRX, DIR, DRX, DRY, DRY, IMP,
+		REL, IMM, IMM, ZPG, ACC, ZPG, ZPG, IMP, IMP, ZPX, ZPX, DIR, DRY, ZPY, ZPY, IMP,
+		IMP, DIM, IMP, DIM, DIR, DIR, DIR, IMP, IMP, DRX, DRX, IMM, DRX, DRY, DRY, IMP,
 		REL, IMM, IMP, NOT, ACC, ZPG, ZPG, IMP, IMP, ZPX, ZPX, NOT, DRY, ZPY, ZPY, IMP,
 		IMP, DIM, IMP, NOT, DIR, DIR, DIR, ACC, IMP, DRX, DRX, NOT, DRX, DRY, DRY, IMP,
 		REL, IMM, IMP, NOT, ACC, ZPG, ZPG, ACC, IMP, ZPX, ZPX, NOT, DRY, ZPY, ZPY, IMP,
@@ -631,15 +631,50 @@ namespace x65 {
 		cpu.p = pullByte(cpu);
 		cpu.i = pullWord(cpu);
 	};
+	void SEP(CPU& cpu, Mode mode) {
+		cpu.p |= readDataB(cpu, mode);
+	};
+	void REP(CPU& cpu, Mode mode) {
+		cpu.p &= ~readDataB(cpu, mode);
+	};
+	void TSB(CPU& cpu, Mode mode) {
+		wt addr = readAddr(cpu, mode);
+		bt data = readByte(cpu, addr);
+		update(cpu, bt(bt(cpu.a) & data));
+
+		data |= (bt)cpu.a;
+		writeByte(cpu, addr, data);
+	};
+	void TRB(CPU& cpu, Mode mode) {
+		wt addr = readAddr(cpu, mode);
+		bt data = readByte(cpu, addr);
+		update(cpu, bt(bt(cpu.a) & data));
+
+		data &= ~bt(cpu.a);
+		writeByte(cpu, addr, data);
+	};
+	void PEA(CPU& cpu, Mode mode) {
+		pushWord(cpu, readDataW(cpu, mode));
+	};
+	void BRK(CPU& cpu, Mode mode) {
+		setBit(cpu, BITI, 1);
+		cpu.a = readDataB(cpu, mode);
+		update(cpu, cpu.a);
+
+		pushWord(cpu, cpu.i);
+		pushByte(cpu, cpu.p);
+		cpu.i = readWord(cpu, 0xFFFA);
+		cpu.wait = false;
+	};
 
 	// opcode jump table
 	typedef void (*opcf)(CPU&, Mode);
 	opcf opcodeTable[256] {
-		NOP, AND, ADC, ERR, ASL, AND, ADC, CLC, JAM, AND, ADC, ERR, ASL, AND, ADC, TAB,
-		BPL, AND, ADC, ERR, ASL, AND, ADC, SEC, WAI, AND, ADC, ERR, ASL, AND, ADC, TAX,
-		JSR, ORA, SBC, ERR, LSR, ORA, SBC, CLI, INS, ORA, SBC, ERR, LSR, ORA, SBC, TAY,
-		BMI, ORA, SBC, ERR, LSR, ORA, SBC, SEI, DES, ORA, SBC, ERR, LSR, ORA, SBC, TBA,
-		RTI, XOR, INX, ERR, ROL, XOR, STZ, CLF, PHP, XOR, STZ, ERR, ROL, XOR, STZ, TXA,
+		NOP, AND, ADC, SEP, ASL, AND, ADC, CLC, JAM, AND, ADC, SEP, ASL, AND, ADC, TAB,
+		BPL, AND, ADC, REP, ASL, AND, ADC, SEC, WAI, AND, ADC, REP, ASL, AND, ADC, TAX,
+		JSR, ORA, SBC, TSB, LSR, ORA, SBC, CLI, INS, ORA, SBC, TSB, LSR, ORA, SBC, TAY,
+		BMI, ORA, SBC, TRB, LSR, ORA, SBC, SEI, DES, ORA, SBC, TRB, LSR, ORA, SBC, TBA,
+		RTI, XOR, INX, PEA, ROL, XOR, STZ, CLF, PHP, XOR, STZ, BRK, ROL, XOR, STZ, TXA,
 		BVC, XOR, INY, ERR, ROL, XOR, STZ, SEF, PLP, XOR, STZ, ERR, ROL, XOR, STZ, TXY,
 		RTS, LTA, DEX, ERR, ROR, LTA, STA, INC, PHA, LTA, STA, ERR, ROR, LTA, STA, TYA,
 		BVS, LTA, DEY, ERR, ROR, LTA, STA, DEC, PLA, LTA, STA, ERR, ROR, LTA, STA, TYX,
