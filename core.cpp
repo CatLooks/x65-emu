@@ -21,6 +21,7 @@ typedef char* mt;
 #include "x65-cpu.h"
 using namespace x65;
 #include "x65-gpu.h"
+#include "x65-apu.h"
 
 // device assembly
 #include "asm.h"
@@ -33,6 +34,12 @@ int main(int argc, mt* argv) {
     if (argc < 2)
         return 0;
 
+    // initialize sdl
+    if (SDL_Init(SDL_INIT_EVERYTHING)) {
+        printf(" - %s\n", SDL_GetError());
+        return 1;
+    };
+
     // save file name
     char filename[512];
     sprintf(filename, "%s.sav", argv[1]);
@@ -44,9 +51,21 @@ int main(int argc, mt* argv) {
         return 1;
     };
 
+    // init audio
+    if (!APU::create(sampleRate)) {
+        printf(" - %s\n", SDL_GetError());
+        return 1;
+    };
+
+    // try to open joystick
+    if (SDL_NumJoysticks() > 0) {
+        joy1 = SDL_JoystickOpen(0);
+        joy2 = SDL_JoystickOpen(1);
+    };
+
     // init window
     if (!gpu.create("X65", 320 * 3, 240 * 3)) {
-        printf("- %s\n", SDL_GetError());
+        printf(" - %s\n", SDL_GetError());
         return 1;
     };
 
@@ -76,8 +95,8 @@ int main(int argc, mt* argv) {
     // main loop
     while (gpu.running()) {
         gpu.start();
-        gpu.events();
-        gpu.update();
+        gpu.events(cpu, joy1, joy2);
+        gpu.update(joy1, joy2);
 
         if (gpu.nmi()) {
             vectorNMI(cpu);
@@ -86,6 +105,12 @@ int main(int argc, mt* argv) {
         gpu.render(get);
         gpu.stop(act);
     };
+
+    // close joystick
+    if (joy1)
+        SDL_JoystickClose(joy1);
+    if (joy2)
+        SDL_JoystickClose(joy2);
 
     // save SRAM
     File sram;
@@ -97,5 +122,6 @@ int main(int argc, mt* argv) {
     saveFile(sram);
 
     // success
+    SDL_CloseAudio();
     return 0;
 };

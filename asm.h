@@ -1,6 +1,8 @@
 // -- component assembly -- //
 
 // devices
+SDL_Joystick* joy1;
+SDL_Joystick* joy2;
 CPU cpu;
 GPU gpu;
 
@@ -17,6 +19,7 @@ void set(wt addr, bt data) {
     if (addr < 0x4000) {
         //printf("W RAM %04X = %02X\n", addr, data);
         ram[addr] = data;
+        return;
     };
 
     // ROM
@@ -28,6 +31,37 @@ void set(wt addr, bt data) {
     // SRAM
     if (addr >= 0x6000) {
         sav[(sbank << 13) | (addr & 0x1FFF)] = data;
+        return;
+    };
+
+    // APU registers
+    if (addr >= 0x5000) {
+        if (addr < 0x5030) {
+            bt channel = (addr & 0xE) >> 1;
+            switch (addr & 0x31) {
+                case 0x00:
+                APU::mixer.channel(channel).freqL(data);
+                break;
+                case 0x01:
+                APU::mixer.channel(channel).freqH(data);
+                break;
+                case 0x10:
+                APU::mixer.channel(channel).volL(data);
+                break;
+                case 0x11:
+                APU::mixer.channel(channel).volR(data);
+                break;
+                case 0x20:
+                case 0x21:
+                APU::mixer.channel(channel).wave(data);
+                break;
+            };
+        };
+
+        for (int i = 0; i < 8; i++) {
+            APU::mixer.channel(i).enable(data & (1 << (i ^ 7)));
+        };
+        return;
     };
 
     // registers
@@ -97,7 +131,6 @@ void set(wt addr, bt data) {
         sbank = data & 0x7;
         break;
     };
-
 };
 bt get(wt addr) {
     // RAM
@@ -125,9 +158,12 @@ bt get(wt addr) {
         return gpu.read();
 
         // Joystick
-        case 0x401E:
-        case 0x401F:
-        return gpu.keys();
+        case 0x5000:
+        case 0x5001:
+        return gpu.keys1();
+        case 0x5002:
+        case 0x5003:
+        return gpu.keys2();
     };
 
     return 0;

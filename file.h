@@ -66,13 +66,18 @@ bool loadROM(vec<bt>& data) {
 
     // read header data
     wt prg = data[0x4] | data[0x5] << 8;
+    bt dsd = data[0x6];
     if (prg > 0x100) {
         printf("- Too large PRG ROM\n");
         return false;
     };
-    int chr = data.size() - prg * 0x1000 - 0x10;
+    if (dsd > 0x80) {
+        printf("- Too large DSD ROM\n");
+        return false;
+    };
+    int chr = data.size() - dsd * 0x100 - prg * 0x1000 - 0x10;
     if (chr < 0) {
-        printf("- Incomplete PRG ROM\n");
+        printf("- Incomplete ROM\n");
         return false;
     };
     if (chr % 32) {
@@ -85,7 +90,7 @@ bool loadROM(vec<bt>& data) {
     };
 
     // copy PRG ROM
-    dt i = 0;
+    dt i;
     for (i = 0; i < prg * 0x1000; i++) {
         if (i + 0x10 >= data.size()) {
             printf(" - PRG ROM segment is missing\n");
@@ -93,12 +98,21 @@ bool loadROM(vec<bt>& data) {
         rom[i] = data[i + 0x10];
     };
 
+    // copy DSD ROM
+    dt j;
+    for (j = 0; j < dsd * 0x100; j++) {
+        if (i + j + 0x10 >= data.size()) {
+            printf(" - DSD ROM segment is missing\n");
+        };
+        waveBuffer[j] = data[i + j + 0x10];
+    };
+
     // copy CHR ROM
     SDL_Surface* cgram = gpu.cgram();
     for (int t = 0; t < chr; t++) {
         int x = ((t & 3) << 1) + ((t >> 5) << 3);
         int y = (t >> 2) & 7;
-        bt d = data[i + t + 0x10];
+        bt d = data[i + j + t + 0x10];
 
         SetPixel(cgram, x + 0, y, d >> 4);
         SetPixel(cgram, x + 1, y, d & 15);

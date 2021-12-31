@@ -19,9 +19,6 @@ class GPU {
     public:
     // window creator
     bool create(st name, int width, int height) {
-        // initialize sdl
-        if (SDL_Init(SDL_INIT_EVERYTHING)) return false;
-
         // create window
         m_win = SDL_CreateWindow(name, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_SHOWN);
         if (m_win == null) return false;
@@ -44,6 +41,8 @@ class GPU {
 
         // success
         m_keystate = SDL_GetKeyboardState(null);
+        m_keys1 = 0x000;
+        m_keys2 = 0x000;
         m_run = true;
         return true;
     };
@@ -88,7 +87,7 @@ class GPU {
     };
 
     // event handler
-    void events() {
+    void events(CPU& cpu, SDL_Joystick* joy1, SDL_Joystick* joy2) {
         SDL_Event evt;
 
         // handler loop
@@ -98,27 +97,75 @@ class GPU {
                 m_run = false;
                 return;
             };
+            // key press
+            if (evt.type == SDL_KEYDOWN) {
+                // reset console
+                if (evt.key.keysym.sym == SDLK_r) {
+                    vectorRST(cpu);
+                    continue;
+                };
+                continue;
+            };
         };
     };
 
-    // window update
-    void update() {
-        // update key states
-        SDL_PumpEvents();
-        m_keys = 0;
+    // update joysticks
+    void update(SDL_Joystick* joy1, SDL_Joystick* joy2) {
+        SDL_JoystickUpdate();
+        m_keys1 = 0x000;
+        m_keys2 = 0x000;
 
-        m_keys |= (m_keystate[SDL_SCANCODE_DOWN]) << 0;
-        m_keys |= (m_keystate[SDL_SCANCODE_UP]) << 1;
-        m_keys |= (m_keystate[SDL_SCANCODE_RIGHT]) << 2;
-        m_keys |= (m_keystate[SDL_SCANCODE_LEFT]) << 3;
-        m_keys |= (m_keystate[SDL_SCANCODE_A]) << 4;
-        m_keys |= (m_keystate[SDL_SCANCODE_S]) << 5;
-        m_keys |= (m_keystate[SDL_SCANCODE_Z]) << 6;
-        m_keys |= (m_keystate[SDL_SCANCODE_X]) << 7;
-        m_keys |= (m_keystate[SDL_SCANCODE_W]) << 8;
-        m_keys |= (m_keystate[SDL_SCANCODE_Q]) << 9;
-        m_keys |= (m_keystate[SDL_SCANCODE_RETURN]) << 10;
-        m_keys |= (m_keystate[SDL_SCANCODE_SPACE]) << 11;
+        // update keys from keyboard
+        m_keys1 |= m_keystate[SDL_SCANCODE_DOWN] << 0;
+        m_keys1 |= m_keystate[SDL_SCANCODE_UP] << 1;
+        m_keys1 |= m_keystate[SDL_SCANCODE_RIGHT] << 2;
+        m_keys1 |= m_keystate[SDL_SCANCODE_LEFT] << 3;
+        m_keys1 |= m_keystate[SDL_SCANCODE_A] << 4;
+        m_keys1 |= m_keystate[SDL_SCANCODE_S] << 5;
+        m_keys1 |= m_keystate[SDL_SCANCODE_Z] << 6;
+        m_keys1 |= m_keystate[SDL_SCANCODE_X] << 7;
+        m_keys1 |= m_keystate[SDL_SCANCODE_W] << 8;
+        m_keys1 |= m_keystate[SDL_SCANCODE_Q] << 9;
+        m_keys1 |= m_keystate[SDL_SCANCODE_RETURN] << 10;
+        m_keys1 |= m_keystate[SDL_SCANCODE_SPACE] << 11;
+
+        // update keys from joystick
+        if (joy1) {
+            Sint16 x = SDL_JoystickGetAxis(joy1, 0);
+            Sint16 y = SDL_JoystickGetAxis(joy1, 1);
+
+            m_keys1 |= (y >= 8192) << 0;
+            m_keys1 |= (y <= -8192) << 1;
+            m_keys1 |= (x >= 8192) << 2;
+            m_keys1 |= (x <= -8192) << 3;
+
+            m_keys1 |= SDL_JoystickGetButton(joy1, 3) << 4;
+            m_keys1 |= SDL_JoystickGetButton(joy1, 0) << 5;
+            m_keys1 |= SDL_JoystickGetButton(joy1, 2) << 6;
+            m_keys1 |= SDL_JoystickGetButton(joy1, 1) << 7;
+            m_keys1 |= (SDL_JoystickGetButton(joy1, 5) | SDL_JoystickGetButton(joy1, 7)) << 8;
+            m_keys1 |= (SDL_JoystickGetButton(joy1, 4) | SDL_JoystickGetButton(joy1, 6)) << 9;
+            m_keys1 |= SDL_JoystickGetButton(joy1, 9) << 10;
+            m_keys1 |= SDL_JoystickGetButton(joy1, 8) << 11;
+        };
+        if (joy2) {
+            Sint16 x = SDL_JoystickGetAxis(joy2, 0);
+            Sint16 y = SDL_JoystickGetAxis(joy2, 1);
+
+            m_keys2 |= (y >= 8192) << 0;
+            m_keys2 |= (y <= -8192) << 1;
+            m_keys2 |= (x >= 8192) << 2;
+            m_keys2 |= (x <= -8192) << 3;
+
+            m_keys2 |= SDL_JoystickGetButton(joy2, 3) << 4;
+            m_keys2 |= SDL_JoystickGetButton(joy2, 0) << 5;
+            m_keys2 |= SDL_JoystickGetButton(joy2, 2) << 6;
+            m_keys2 |= SDL_JoystickGetButton(joy2, 1) << 7;
+            m_keys2 |= (SDL_JoystickGetButton(joy2, 5) | SDL_JoystickGetButton(joy2, 7)) << 8;
+            m_keys2 |= (SDL_JoystickGetButton(joy2, 4) | SDL_JoystickGetButton(joy2, 6)) << 9;
+            m_keys2 |= SDL_JoystickGetButton(joy2, 9) << 10;
+            m_keys2 |= SDL_JoystickGetButton(joy2, 8) << 11;
+        };
     };
 
     // window render
@@ -144,12 +191,6 @@ class GPU {
                 sprites[i].p6 = get(saddr + i * 2 + 0x101);
                 sprites[i].p1 = get(saddr + i * 2 + 0x200);
                 sprites[i].p2 = get(saddr + i * 2 + 0x201);
-
-                /*printf("Sprite $%02X:\n", i);
-                printf("- Tile:    %03X\n", sprites[i].id());
-                printf("- Layer:   %d\n", sprites[i].layer());
-                printf("- Palette: %X\n", sprites[i].palette());
-                printf("- Pos: %d %d\n", sprites[i].x(), sprites[i].y());*/
             };
         };
 
@@ -210,7 +251,7 @@ class GPU {
     // sprites render
     void renderSprites(vec<Sprite*> sprites) {
         for (Sprite* spr : sprites) {
-            SDL_Rect src = {(spr->id() | 0x400) << 3, 0, 8, 8};
+            SDL_Rect src = {(spr->id() | (sprc ? 0x400 : 0)) << 3, 0, 8, 8};
             SDL_Rect dst = {spr->x(), spr->y(), 8, 8};
 
             SDL_SetSurfacePalette(m_sur, m_pal[spr->palette()]);
@@ -223,9 +264,6 @@ class GPU {
         m_timer = SDL_GetTicks();
     };
     void stop(proc action) {
-        /*int delta = SDL_GetTicks() - m_timer;
-        if (delta < 16)
-            SDL_Delay(16 - delta);*/
         while (true) {
             int delta = SDL_GetTicks() - m_timer;
             action();
@@ -244,8 +282,11 @@ class GPU {
     };
 
     // get key state
-    wt keys() {
-        return m_keys;
+    wt keys1() {
+        return m_keys1;
+    };
+    wt keys2() {
+        return m_keys2;
     };
 
     // get layer
@@ -408,7 +449,8 @@ class GPU {
         sprb = data & 0x40;
         lay1 = data & 0x20;
         lay2 = data & 0x10;
-        head = data & 0x3;
+        sprc = data & 0x04;
+        head = data & 0x03;
     };
     void room(bt data) {
         layers[0].roomy = data & 0x8;
@@ -427,7 +469,8 @@ class GPU {
     const Uint8* m_keystate;
     bool m_run = false;
     dt m_timer = 0;
-    wt m_keys = 0;
+    wt m_keys1 = 0;
+    wt m_keys2 = 0;
 
     // gpu data
     Layer layers[2];
@@ -439,4 +482,5 @@ class GPU {
     bool sprb;
     bool lay1;
     bool lay2;
+    bool sprc;
 };
