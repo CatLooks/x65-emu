@@ -159,11 +159,13 @@ bt get(wt addr) {
 
         // Joystick
         case 0x5000:
+        return gpu.keys1() & 0xFF;
         case 0x5001:
-        return gpu.keys1();
+        return gpu.keys1() >> 8;
         case 0x5002:
+        return gpu.keys2() & 0xFF;
         case 0x5003:
-        return gpu.keys2();
+        return gpu.keys2() >> 8;
     };
 
     return 0;

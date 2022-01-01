@@ -36,7 +36,7 @@ namespace x65 {
 		REL, IMM, IMP, NOT, ACC, ZPG, ZPG, ACC, IMP, ZPX, ZPX, NOT, DRY, ZPY, ZPY, IMP,
 		IMP, DIM, BUF, NOT, DIR, DIR, DIR, NOT, IMP, DRX, DRX, NOT, DRX, DRY, DRY, IMP,
 		REL, IMM, BUF, NOT, DIM, ZPG, ZPG, NOT, IMP, ZPX, ZPX, NOT, DRY, ZPY, ZPY, IMP,
-		BUF, DIM, BUF, NOT, DIR, DIR, DIR, NOT, IMP, DRX, DIR, NOT, ACC, DRY, DRY, IMP,
+		BUF, DIM, BUF, NOT, DIR, DIR, DIR, NOT, IMP, DRX, DIR, NOT, DIR, DRY, DRY, IMP,
 		REL, IMM, BUF, NOT, DIM, ZPG, ZPG, NOT, IMP, ZPX, ZPG, NOT, DRY, ZPY, ZPY, IMP,
 		BUF, DIM, BUF, NOT, DIR, DIR, DIR, NOT, IMP, DRX, DRX, NOT, DRX, DRY, DIR, REL,
 		REL, IMM, BUF, NOT, DIM, ZPG, ZPG, NOT, IMP, ZPX, ZPX, NOT, BUF, ZPY, ZPG, DIR,
@@ -53,9 +53,11 @@ namespace x65 {
 		inpf get;
 		wt a, b;
 		wt x, y;
-		wt s, i;
-		wt l;
+		wt i;
 		bt p;
+
+		wt s = 0x1000;
+		wt l = 0x1000;
 	};
 
 	// misc operations
@@ -492,12 +494,14 @@ namespace x65 {
 	};
 	void ADC(CPU& cpu, Mode mode) {
 		dt res = cpu.a + readDataW(cpu, mode) + getBit(cpu, BITC);
+		setBit(cpu, BITV, (cpu.a >> 15 == 0) && ((res & 0xFFFF) >> 15 == 1));
 		cpu.a = res & 0xFFFF;
 		setBit(cpu, BITC, res >> 16);
 		update(cpu, cpu.a);
 	};
 	void SBC(CPU& cpu, Mode mode) {
 		dt res = cpu.a - readDataW(cpu, mode) + getBit(cpu, BITC) - 1;
+		setBit(cpu, BITV, (cpu.a >> 15 == 1) && ((res & 0xFFFF) >> 15 == 0));
 		cpu.a = res & 0xFFFF;
 		setBit(cpu, BITC, !(res >> 16));
 		update(cpu, cpu.a);
@@ -592,15 +596,19 @@ namespace x65 {
 	};
 	void MUL(CPU& cpu, Mode mode) {
 		if (getBit(cpu, BITF)) {
+			setBit(cpu, BITC, (cpu.a * cpu.b) >> 24);
 			cpu.a = (cpu.a * cpu.b) >> 8;
 		} else {
+			setBit(cpu, BITC, (cpu.a * cpu.b) >> 16);
 			cpu.a = cpu.a * cpu.b;
 		};
 		update(cpu, cpu.a);
 	};
 	void DIV(CPU& cpu, Mode mode) {
+		setBit(cpu, BITV, cpu.b == 0);
 		if (cpu.b == 0)
 			return;
+		setBit(cpu, BITC, cpu.a % cpu.b);
 		if (getBit(cpu, BITF)) {
 			cpu.a = (cpu.a << 8) / cpu.b;
 		} else {
@@ -609,8 +617,10 @@ namespace x65 {
 		update(cpu, cpu.a);
 	};
 	void MOD(CPU& cpu, Mode mode) {
+		setBit(cpu, BITV, cpu.b == 0);
 		if (cpu.b == 0)
 			return;
+		setBit(cpu, BITC, cpu.a >= cpu.b);
 		cpu.a = cpu.a % cpu.b;
 		update(cpu, cpu.a);
 	};
@@ -657,14 +667,13 @@ namespace x65 {
 		pushWord(cpu, readDataW(cpu, mode));
 	};
 	void BRK(CPU& cpu, Mode mode) {
-		setBit(cpu, BITI, 1);
 		cpu.a = readDataB(cpu, mode);
-		update(cpu, cpu.a);
-
 		pushWord(cpu, cpu.i);
 		pushByte(cpu, cpu.p);
+
+		update(cpu, (bt)cpu.a);
+		setBit(cpu, BITI, 1);
 		cpu.i = readWord(cpu, 0xFFFA);
-		cpu.wait = false;
 	};
 
 	// opcode jump table
@@ -684,7 +693,7 @@ namespace x65 {
 		BCS, LTX, ORA, ERR, CPX, LTX, STX, ERR, PLX, LTX, INC, ERR, CPX, LTX, STX, TDH,
 		DIV, LTY, XOR, ERR, CPY, LTY, STY, ERR, PHY, LTY, STY, ERR, CPY, LTY, DEC, BRA,
 		BNE, LTY, CMP, ERR, CPY, LTY, STY, ERR, PLY, LTY, STY, ERR, BIT, LTY, DEC, JMP,
-		MOD, LTV, CPX, ERR, CMD, LTD, STD, ERR, PHD, LTD, STD, ERR, CMP, LTD, STD, JMP,
+		MOD, LTV, CPX, ERR, CMD, LTD, STD, ERR, PHD, LTD, STD, ERR, CMD, LTD, STD, JMP,
 		BEQ, LTD, CPY, ERR, CMD, LTD, STD, ERR, PLD, LTD, STD, ERR, CMD, LTD, STD, JSR
 	};
 
