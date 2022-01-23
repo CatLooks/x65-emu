@@ -14,6 +14,35 @@
 #define KEY_START  0x400
 #define KEY_SELECT 0x800
 
+// icon data
+const Uint16 g1 = 0xF334;
+const Uint16 g2 = 0xF223;
+const Uint16 g3 = 0xF112;
+const Uint16 p1 = 0xF9AB;
+const Uint16 b1 = 0x1000;
+const Uint16 b2 = 0x2000;
+
+Uint16 iconData[256] {
+    b2, b2, b2, b2, b2, b2, b2, b2, b2, b2, b2, b2, b2, b2, b2, b2,
+    b2, b1, b1, b1, b1, b1, b1, b1, b1, b1, b1, b1, b1, b1, b1, b2,
+    b2, b1, b1, b1, b1, b1, b1, b1, b1, b1, b1, b1, b1, b1, b1, b2,
+
+    b2, b1, b1, b1, g1, g1, b1, b1, b1, b1, b1, b1, b1, b1, b1, b2,
+    b2, b1, g1, g1, g1, g1, g1, g1, b1, b1, b1, b1, b1, b1, b1, b2,
+    b2, g1, g1, g1, g1, g1, g1, g1, g1, g1, b1, b1, b1, b1, b1, b2,
+    b2, g2, g1, g1, g1, g1, g1, g1, g1, g1, g1, g1, b1, b1, b1, b2,
+    b2, g2, g2, p1, g1, g1, g1, g1, g1, g1, g1, g1, g1, g1, b1, b2,
+    b2, b1, g2, p1, g2, p1, g1, g1, g1, g1, g1, g1, g1, g1, g1, b2,
+    b2, b1, p1, b1, g2, p1, g2, p1, g1, g1, g1, g1, g1, g1, g3, b2,
+    b2, b1, b1, b1, p1, b1, g2, p1, g2, p1, g1, g1, g3, g3, g3, b2,
+    b2, b1, b1, b1, b1, b1, p1, b1, g2, p1, g3, g3, g3, g3, b1, b2,
+    b2, b1, b1, b1, b1, b1, b1, b1, p1, b1, g3, g3, b1, b1, b1, b2,
+
+    b2, b1, b1, b1, b1, b1, b1, b1, b1, b1, b1, b1, b1, b1, b1, b2,
+    b2, b1, b1, b1, b1, b1, b1, b1, b1, b1, b1, b1, b1, b1, b1, b2,
+    b2, b2, b2, b2, b2, b2, b2, b2, b2, b2, b2, b2, b2, b2, b2, b2
+};
+
 // gpu object
 class GPU {
     public:
@@ -29,6 +58,11 @@ class GPU {
         m_scr = SDL_GetWindowSurface(m_win);
         if (m_sur == null) return false;
         if (m_buf == null) return false;
+
+        // set window icon
+        SDL_Surface* ico = SDL_CreateRGBSurfaceFrom(iconData, 16, 16, 16, 32, 0x0F00, 0x00F0, 0x000F, 0xF000);
+        SDL_SetWindowIcon(m_win, ico);
+        SDL_FreeSurface(ico);
 
         // create palettes
         for (int i = 0; i < 16; i++)
@@ -87,7 +121,7 @@ class GPU {
     };
 
     // event handler
-    void events(CPU& cpu, SDL_Joystick* joy1, SDL_Joystick* joy2) {
+    void events(CPU& cpu, SDL_Joystick*& joy1, SDL_Joystick*& joy2) {
         SDL_Event evt;
 
         // handler loop
@@ -104,7 +138,33 @@ class GPU {
                     vectorRST(cpu);
                     continue;
                 };
+
+                // change window scale
+                if (evt.key.keysym.sym == SDLK_f) {
+                    m_scale = (m_scale + 1) & 3;
+                    SDL_SetWindowSize(m_win, 320 * (m_scale + 1), 240 * (m_scale + 1));
+                    m_scr = SDL_GetWindowSurface(m_win);
+                    continue;
+                };
                 continue;
+            };
+            // joystick events
+            if (evt.type == SDL_JOYDEVICEADDED) {
+                if (joy1) {
+                    if (!joy2)
+                        joy2 = SDL_JoystickOpen(evt.jdevice.which);
+                } else {
+                    joy1 = SDL_JoystickOpen(evt.jdevice.which);
+                };
+            };
+            if (evt.type == SDL_JOYDEVICEREMOVED) {
+                if (SDL_JoystickFromInstanceID(evt.jdevice.which) == joy1) {
+                    SDL_JoystickClose(joy1);
+                    joy1 = null;
+                } else if (SDL_JoystickFromInstanceID(evt.jdevice.which) == joy2) {
+                    SDL_JoystickClose(joy2);
+                    joy2 = null;
+                };
             };
         };
     };
@@ -285,10 +345,13 @@ class GPU {
 
     // get key state
     wt keys1() {
-        return m_keys1;
+        return m_keys1 | (m_ju << 15);
     };
     wt keys2() {
-        return m_keys2;
+        return m_keys2 | (m_ju << 15);
+    };
+    void setJoystickUse(bool state) {
+        m_ju = state;
     };
 
     // get layer
@@ -470,9 +533,11 @@ class GPU {
     SDL_Window*   m_win;
     const Uint8* m_keystate;
     bool m_run = false;
+    bool m_ju = false;
     dt m_timer = 0;
     wt m_keys1 = 0;
     wt m_keys2 = 0;
+    bt m_scale = 1;
 
     // gpu data
     Layer layers[2];

@@ -2,8 +2,10 @@
 
 // include libraries
 #include <SDL2/SDL.h>
+#include <windows.h>
 #include <stdio.h>
 #include <vector>
+#include <math.h>
 
 // define types
 #define null __null
@@ -48,40 +50,64 @@ int main(int argc, mt* argv) {
     File file = loadFile(argv[1]);
     if (!file.valid) {
         printf(" - Failed to open %s\n", argv[1]);
-        return 1;
+        return 2;
     };
 
     // init audio
     if (!APU::create(sampleRate)) {
         printf(" - %s\n", SDL_GetError());
-        return 1;
+        return 3;
     };
 
     // try to open joystick
     if (SDL_NumJoysticks() > 0) {
         joy1 = SDL_JoystickOpen(0);
         joy2 = SDL_JoystickOpen(1);
+        gpu.setJoystickUse(joy1 || joy2);
     };
 
     // init window
-    if (!gpu.create("X65", 320 * 3, 240 * 3)) {
+    if (!gpu.create("X65", 320 * 2, 240 * 2)) {
         printf(" - %s\n", SDL_GetError());
-        return 1;
+        return 4;
     };
 
+    // randomize memory state
+    for (int i = 0; i < 0x4000; i++)
+        ram[i] = rand() & 0xFF;
+    cpu.a = rand();
+    cpu.b = rand();
+    cpu.x = rand();
+    cpu.y = rand();
+
     // parse rom
-    if (!loadROM(file.data))
-        return 1;
+    int errlevel = loadROM(file.data);
+    if (errlevel) {
+        // load error rom
+        File errc = loadFile(rootFile("error.x65"));
+        if (!errc.valid) {
+            printf(" - Failed to open error cart\n");
+            return 5;
+        };
+
+        int ferr = loadROM(errc.data);
+        if (ferr)
+            return ferr;
+
+        ram[0x00] = errlevel;
+    };
 
     // load save file
-    File save = loadFile(filename);
-    if (save.valid) {
-        if (save.data.size() == 0x10000) {
-            for (dt i = 0; i < save.data.size(); i++) {
-                sav[i] = save.data[i];
+    if (sram) {
+        File save = loadFile(filename);
+        if (save.valid) {
+            if (save.data.size() == 0x10000) {
+                for (dt i = 0; i < save.data.size(); i++) {
+                    sav[i] = save.data[i];
+                };
+            } else {
+                printf(" - Save file should be 64K long\n");
             };
-        } else {
-            printf(" - Save file should be 64K long\n");
         };
     };
 
@@ -113,13 +139,14 @@ int main(int argc, mt* argv) {
         SDL_JoystickClose(joy2);
 
     // save SRAM
-    File sram;
-    sram.name = filename;
-    sram.valid = true;
-    for (int i = 0; i < 0x10000; i++)
-        sram.data.push_back(sav[i]);
-
-    saveFile(sram);
+    if (sram) {
+        File sf;
+        sf.name = filename;
+        sf.valid = true;
+        for (int i = 0; i < 0x10000; i++)
+            sf.data.push_back(sav[i]);
+        saveFile(sf);
+    };
 
     // success
     SDL_CloseAudio();

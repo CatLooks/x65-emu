@@ -1,6 +1,8 @@
 // -- component assembly -- //
 
 // devices
+bool sram;
+bt bufbyte;
 SDL_Joystick* joy1;
 SDL_Joystick* joy2;
 CPU cpu;
@@ -30,13 +32,13 @@ void set(wt addr, bt data) {
 
     // SRAM
     if (addr >= 0x6000) {
-        sav[(sbank << 13) | (addr & 0x1FFF)] = data;
+        if (sram) sav[(sbank << 13) | (addr & 0x1FFF)] = data;
         return;
     };
 
     // APU registers
     if (addr >= 0x5000) {
-        if (addr < 0x5030) {
+        if (addr < 0x5040) {
             bt channel = (addr & 0xE) >> 1;
             switch (addr & 0x31) {
                 case 0x00:
@@ -52,13 +54,17 @@ void set(wt addr, bt data) {
                 APU::mixer.channel(channel).volR(data);
                 break;
                 case 0x20:
+                APU::mixer.channel(channel).loopL(data);
+                break;
                 case 0x21:
+                APU::mixer.channel(channel).loopH(data);
+                break;
+                case 0x30:
+                case 0x31:
                 APU::mixer.channel(channel).wave(data);
                 break;
             };
-        };
-
-        for (int i = 0; i < 8; i++) {
+        } else for (int i = 0; i < 8; i++) {
             APU::mixer.channel(i).enable(data & (1 << (i ^ 7)));
         };
         return;
@@ -130,6 +136,20 @@ void set(wt addr, bt data) {
         case 0x4018:
         sbank = data & 0x7;
         break;
+
+        // Debug
+        case 0x4FFC:
+        bufbyte = data;
+        break;
+        case 0x4FFD:
+        printf("%04X", bufbyte | (data << 8));
+        break;
+        case 0x4FFE:
+        printf("%02X", data);
+        break;
+        case 0x4FFF:
+        putchar(data);
+        break;
     };
 };
 bt get(wt addr) {
@@ -147,7 +167,7 @@ bt get(wt addr) {
 
     // SRAM
     if (addr >= 0x6000) {
-        return sav[(sbank << 13) | (addr & 0x1FFF)];
+        return sram ? sav[(sbank << 13) | (addr & 0x1FFF)] : 0;
     };
 
     // registers

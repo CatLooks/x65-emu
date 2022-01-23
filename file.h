@@ -50,43 +50,72 @@ bool saveFile(File& file) {
     return true;
 };
 
+// get filename in root directory
+mt rootFile(mt path) {
+    char buffer[256];
+    GetModuleFileNameA(null, buffer, 256);
+
+    int slash = 0xFF;
+    for (int i = 0; i < strlen(buffer); i++) {
+        if (buffer[i] == '\\' || buffer[i] == '/') {
+            slash = i + 1;
+        };
+    };
+
+    vec<char> res;
+    for (int i = 0; i < slash; i++) {
+        res.push_back(buffer[i]);
+    };
+    for (int i = 0; i < strlen(path); i++) {
+        res.push_back(path[i]);
+    };
+    res.push_back(0);
+
+    mt out = new char[res.size()];
+    for (int i = 0; i < res.size(); i++)
+        out[i] = res[i];
+
+    return out;
+};
+
 // parse ROM
-bool loadROM(vec<bt>& data) {
+int loadROM(vec<bt>& data) {
     // check file size
     if (data.size() < 16) {
         printf(" - File is too small\n");
-        return false;
+        return 10;
     };
 
     // check for signature
     if (data[0] != 'x' || data[1] != '6' || data[2] != '5' || data[3] != 0) {
         printf(" - Invalid signature\n");
-        return false;
+        return 16;
     };
 
     // read header data
     wt prg = data[0x4] | data[0x5] << 8;
     bt dsd = data[0x6];
+    sram = data[0x7];
     if (prg > 0x100) {
-        printf("- Too large PRG ROM\n");
-        return false;
+        printf(" - Too large PRG ROM\n");
+        return 11;
     };
     if (dsd > 0x80) {
-        printf("- Too large DSD ROM\n");
-        return false;
+        printf(" - Too large DSD ROM\n");
+        return 12;
     };
-    int chr = data.size() - dsd * 0x100 - prg * 0x1000 - 0x10;
+    int chr = data.size() - dsd * waveSize - prg * 0x1000 - 0x10;
     if (chr < 0) {
-        printf("- Incomplete ROM\n");
-        return false;
+        printf(" - Incomplete ROM\n");
+        return 13;
     };
     if (chr % 32) {
-        printf("- CHR ROM contains unfinished data\n");
-        return false;
+        printf(" - CHR ROM contains unfinished data\n");
+        return 14;
     };
     if (chr > 0x10000) {
-        printf("- Too large CHR ROM\n");
-        return false;
+        printf(" - Too large CHR ROM\n");
+        return 15;
     };
 
     // copy PRG ROM
@@ -100,7 +129,7 @@ bool loadROM(vec<bt>& data) {
 
     // copy DSD ROM
     dt j;
-    for (j = 0; j < dsd * 0x100; j++) {
+    for (j = 0; j < dsd * waveSize; j++) {
         if (i + j + 0x10 >= data.size()) {
             printf(" - DSD ROM segment is missing\n");
         };
@@ -119,5 +148,5 @@ bool loadROM(vec<bt>& data) {
     };
 
     // success
-    return true;
+    return 0;
 };

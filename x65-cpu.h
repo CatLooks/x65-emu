@@ -245,7 +245,7 @@ namespace x65 {
 		pushWord(cpu, cpu.b);
 	};
 	void PLB(CPU& cpu, Mode mode) {
-		cpu.a = pullWord(cpu);
+		cpu.b = pullWord(cpu);
 		update(cpu, cpu.b);
 	};
 	void PHX(CPU& cpu, Mode mode) {
@@ -266,7 +266,7 @@ namespace x65 {
 		pushByte(cpu, cpu.a & 0xFF);
 	};
 	void PLD(CPU& cpu, Mode mode) {
-		cpu.a |= pullByte(cpu);
+		cpu.a = pullByte(cpu);
 		update(cpu, (bt)cpu.a);
 	};
 	void TAB(CPU& cpu, Mode mode) {
