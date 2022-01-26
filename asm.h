@@ -64,6 +64,11 @@ void set(wt addr, bt data) {
                 APU::mixer.channel(channel).wave(data);
                 break;
             };
+        } else if (addr & 1) {
+            for (int i = 0; i < 8; i++) {
+                if (data & (1 << (i ^ 7)))
+                    APU::mixer.channel(i).enable(true);
+            };
         } else for (int i = 0; i < 8; i++) {
             APU::mixer.channel(i).enable(data & (1 << (i ^ 7)));
         };

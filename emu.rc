@@ -1,0 +1,25 @@
+id ICON "ico.ico"
+
+1 VERSIONINFO
+FILEVERSION     1,2,0,0
+PRODUCTVERSION  1,2,0,0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904E4"
+    BEGIN
+      VALUE "CompanyName", ""
+      VALUE "FileDescription", "X65 Emulator"
+      VALUE "FileVersion", "1.2"
+      VALUE "InternalName", "x65"
+      VALUE "LegalCopyright", ""
+      VALUE "OriginalFilename", "x65.exe"
+      VALUE "ProductName", "X65"
+      VALUE "ProductVersion", "1.2"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1252
+  END
+END
